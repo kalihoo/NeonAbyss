@@ -1,4 +1,5 @@
-import { Player } from '@remotion/player'
+import { useEffect, useRef, useState } from 'react'
+import { Player, type PlayerRef } from '@remotion/player'
 import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from 'remotion'
 
 const clamp={extrapolateLeft:'clamp' as const,extrapolateRight:'clamp' as const}
@@ -10,11 +11,26 @@ function WaterLightLoop(){
   return <AbsoluteFill style={{overflow:'hidden',pointerEvents:'none',mixBlendMode:'screen'}}>
     <AbsoluteFill style={{opacity:shimmer,translate:`${drift}% 0`,background:'linear-gradient(108deg,transparent 5%,rgba(166,247,255,.28) 16%,transparent 24%,transparent 41%,rgba(150,179,255,.21) 54%,transparent 60%,transparent 78%,rgba(255,96,241,.12) 83%,transparent 89%)'}}/>
     <AbsoluteFill style={{opacity:interpolate(frame,[0,90,180,270,360],[.13,.23,.1,.19,.13],clamp),background:'radial-gradient(ellipse 60% 15% at 50% 0,rgba(117,246,255,.75),transparent 75%)'}}/>
+    <div style={{position:'absolute',left:0,right:0,top:`${interpolate(frame,[0,360],[-12,112],clamp)}%`,height:20,opacity:interpolate(frame,[0,35,170,315,359],[0,.2,.12,.2,0],clamp),background:'linear-gradient(transparent,rgba(79,240,255,.26),transparent)',borderBottom:'1px solid rgba(131,247,255,.16)'}}/>
   </AbsoluteFill>
 }
 
-export function WaterMotion(){
-  return <Player component={WaterLightLoop} durationInFrames={360} compositionWidth={1000} compositionHeight={500} fps={30} autoPlay loop controls={false} clickToPlay={false} initiallyMuted style={{position:'absolute',inset:0,width:'100%',height:'100%',pointerEvents:'none',zIndex:1}} />
+export function WaterMotion({clockRef}:{clockRef:{current:number}}){
+  const player=useRef<PlayerRef>(null)
+  const [reduced,setReduced]=useState(()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+  useEffect(()=>{
+    const media=window.matchMedia('(prefers-reduced-motion: reduce)')
+    const preference=()=>setReduced(media.matches)
+    const visibility=()=>{if(document.hidden)player.current?.pause();else if(!media.matches)player.current?.play()}
+    const instance=player.current
+    const frameUpdate=(event:{detail:{frame:number}})=>{clockRef.current=event.detail.frame/30}
+    instance?.addEventListener('frameupdate',frameUpdate)
+    document.addEventListener('visibilitychange',visibility)
+    media.addEventListener('change',preference)
+    return()=>{instance?.removeEventListener('frameupdate',frameUpdate);document.removeEventListener('visibilitychange',visibility);media.removeEventListener('change',preference)}
+  },[clockRef,reduced])
+  if(reduced)return null
+  return <Player ref={player} component={WaterLightLoop} durationInFrames={360} compositionWidth={1000} compositionHeight={500} fps={30} autoPlay loop controls={false} clickToPlay={false} initiallyMuted style={{position:'absolute',inset:0,width:'100%',height:'100%',pointerEvents:'none',zIndex:1}} />
 }
 
 function SpecialComposition(){

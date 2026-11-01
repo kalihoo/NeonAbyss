@@ -1,30 +1,33 @@
 export type Vec = { x: number; y: number }
-export type FishKind = 'ember' | 'koi' | 'silver' | 'shadow' | 'cyber'
+export const fishSpecies = ['goldfish', 'koi', 'tetra', 'angelfish', 'betta', 'arowana', 'danio', 'catfish', 'discus'] as const
+export type FishKind = typeof fishSpecies[number]
 export type Fish = Vec & { id: number; kind: FishKind; vx: number; vy: number; angle: number; size: number; depth: number; phase: number; wander: Vec; wanderTimer: number }
-export type Food = Vec & { vy: number; eaten: boolean; phase: number }
+export type FoodKind = 'chip' | 'gpu' | 'gear'
+export type Food = Vec & { kind: FoodKind; vy: number; eaten: boolean; phase: number }
 export type Attraction = Vec & { ttl: number }
 
-const kinds: FishKind[] = ['ember', 'koi', 'silver', 'shadow', 'cyber', 'ember']
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v))
 
 export function createFish(): Fish[] {
-  return kinds.map((kind, id) => ({
-    id, kind, x: .2 + (id % 3) * .28, y: .29 + Math.floor(id / 3) * .34,
+  return fishSpecies.map((kind, id) => ({
+    id, kind, x: .2 + (id % 3) * .28, y: .23 + Math.floor(id / 3) * .25,
     vx: id % 2 ? -.035 : .035, vy: .008 * (id % 3 - 1), angle: id % 2 ? Math.PI : 0,
-    size: [.86, .75, .58, .70, .54, .48][id], depth: [.83, .6, .45, .69, .91, .36][id],
+    size: [.88, .94, .24, .67, .73, 1, .22, .77, .62][id], depth: [.83, .6, .45, .69, .91, .56, .4, .72, .85][id],
     phase: id * 1.71, wander: { x: .5, y: .5 }, wanderTimer: 0
   }))
 }
 
 export function addFood(food: Food[], count = 7) {
   if (food.length > 28) return
-  for (let i = 0; i < count; i++) food.push({ x: clamp(.38 + Math.random() * .24, .08, .92), y: .035 - i * .008, vy: .036 + Math.random() * .025, phase: Math.random() * 6.28, eaten: false })
+  const kinds: FoodKind[] = ['chip', 'gpu', 'gear']
+  for (let i = 0; i < count; i++) food.push({ kind: kinds[i % 3], x: clamp(.32 + Math.random() * .36, .08, .92), y: .035 - i * .018, vy: .036 + Math.random() * .025, phase: Math.random() * 6.28, eaten: false })
 }
 
 export function stepFish(fish: Fish[], food: Food[], attraction: Attraction | null, pointer: Vec | null, dt: number, time: number) {
   dt = Math.min(dt, .05)
   for (const pellet of food) {
-    pellet.y = Math.min(.9, pellet.y + pellet.vy * dt)
+    // Settle above the substrate, inside the fish's reachable swim volume.
+    pellet.y = Math.min(.81, pellet.y + pellet.vy * dt)
     pellet.x += Math.sin(time * 1.7 + pellet.phase) * dt * .002
   }
   for (const f of fish) {

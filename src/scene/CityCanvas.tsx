@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import cityPlate from '../assets/city-night.jpg'
+import { drawCityTraffic, loadAircraftSprites, type AircraftSprites } from './AircraftVisuals'
 
 export type Weather = 'rain' | 'fog' | 'dust' | 'clear'
 export type DayPhase = 'night' | 'blue' | 'sunset'
@@ -80,47 +81,7 @@ function holoFigure(ctx:CanvasRenderingContext2D,x:number,y:number,t:number){
   ctx.restore()
 }
 
-function car(ctx: CanvasRenderingContext2D, x: number, y: number, scale: number, color: string, t: number, reverse = false) {
-  ctx.save(); ctx.translate(x, y + Math.sin(t * 1.9 + x) * 3); ctx.scale(scale * (reverse ? -1 : 1), scale)
-  ctx.shadowColor = color; ctx.shadowBlur = 13
-  polygon(ctx, [[-25,0],[-15,-8],[10,-8],[22,-2],[29,3],[19,7],[-22,7]], '#101b28', color)
-  polygon(ctx, [[-11,-7],[2,-7],[8,-1],[-15,-1]], '#245372')
-  ctx.fillStyle = color; ctx.fillRect(-20, 7, 9, 2); ctx.fillRect(13, 7, 9, 2)
-  ctx.fillStyle = '#ff3856'; ctx.fillRect(-27, -1, 3, 4)
-  ctx.restore()
-}
-
-function ornithopter(ctx: CanvasRenderingContext2D, x: number, y: number, t: number) {
-  ctx.save(); ctx.translate(x, y); const wing = Math.sin(t * 24) * 14
-  ctx.shadowColor = '#ffbc8e'; ctx.shadowBlur = 12
-  polygon(ctx, [[-6,0],[-38,-13-wing],[-94,-9-wing],[-34,4]], 'rgba(94,100,116,.67)', '#9e8b8c')
-  polygon(ctx, [[5,0],[41,-13-wing],[98,-10-wing],[31,5]], 'rgba(69,87,105,.72)', '#8c96a2')
-  polygon(ctx, [[-5,2],[-47,11+wing],[-80,17+wing],[-24,8]], 'rgba(65,78,91,.55)')
-  polygon(ctx, [[3,2],[42,11+wing],[81,17+wing],[24,8]], 'rgba(65,78,91,.55)')
-  polygon(ctx, [[-15,-5],[12,-5],[24,0],[5,8],[-21,5]], '#1e2936', '#d2a495')
-  ctx.fillStyle = '#e7ff00'; ctx.fillRect(-21, 1, 4, 2); ctx.restore()
-}
-
-function freighter(ctx: CanvasRenderingContext2D, x: number, y: number, scale: number) {
-  ctx.save(); ctx.translate(x,y); ctx.scale(scale,scale); ctx.shadowColor = '#2aaeff'; ctx.shadowBlur = 18
-  polygon(ctx,[[-48,-3],[-30,-15],[16,-17],[41,-6],[54,4],[25,15],[-31,13]],'#33424c','#658297')
-  polygon(ctx,[[-54,-2],[-16,-2],[-5,5],[-55,5]],'#263c4e','#8499a3')
-  ctx.fillStyle = '#0b1724'; ctx.fillRect(18,-12,17,8)
-  ctx.fillStyle = '#29aeff'; ctx.fillRect(-24,12,44,4); ctx.restore()
-}
-
-function warship(ctx: CanvasRenderingContext2D, x: number, y: number, scale: number, alpha: number) {
-  ctx.save(); ctx.translate(x,y); ctx.scale(scale,scale); ctx.globalAlpha = alpha
-  ctx.shadowColor = '#7891a9'; ctx.shadowBlur = 38
-  polygon(ctx,[[-190,-8],[146,-50],[242,0],[148,34],[-190,16]],'#1b2934','#536577')
-  polygon(ctx,[[-147,-5],[143,-39],[207,0],[142,19]],'#344451')
-  polygon(ctx,[[-24,-27],[38,-73],[98,-67],[107,-34]],'#1b2b38','#4c5c67')
-  ctx.fillStyle = '#6cbfff'; for(let i=0;i<10;i++)ctx.fillRect(-156+i*23,12,9,2)
-  ctx.shadowColor = '#46a4ff'; ctx.shadowBlur = 24; ctx.fillStyle='#4cbeff'; for(let i=0;i<5;i++)ctx.fillRect(-190, -3+i*4, 9,2)
-  ctx.restore()
-}
-
-function draw(ctx: CanvasRenderingContext2D, t: number, weather: Weather, day: DayPhase, special: boolean, pointer: {x:number;y:number}, reduced: boolean, plate: HTMLImageElement | null) {
+function draw(ctx: CanvasRenderingContext2D, t: number, weather: Weather, day: DayPhase, special: boolean, pointer: {x:number;y:number}, reduced: boolean, plate: HTMLImageElement | null, aircraft: AircraftSprites, mobile: boolean) {
   const warm = weather === 'dust' ? 1 : day === 'sunset' ? .7 : 0
   const fog = weather === 'fog' ? .8 : weather === 'dust' ? .65 : .23
   const sky = ctx.createLinearGradient(0,0,0,900)
@@ -151,16 +112,12 @@ function draw(ctx: CanvasRenderingContext2D, t: number, weather: Weather, day: D
     beam.addColorStop(0,'rgba(0,245,255,0)');beam.addColorStop(.52,weather==='dust'?'rgba(255,176,82,.06)':'rgba(73,183,255,.045)');beam.addColorStop(1,'rgba(0,245,255,0)')
     polygon(ctx,[[x-7,70],[x+3,70],[x+115,650],[x+25,650]],beam)
   }
-  ctx.save();ctx.translate(pointer.x*8,pointer.y*5)
-  warship(ctx,1000+(reduced?0:Math.sin(t*.06)*65),165,.66,special?.84:plate?0:.2)
-  ctx.restore()
   // distant tiers
   if(!plate?.complete || !plate.naturalWidth) for(let layer=0;layer<3;layer++){
     ctx.save();ctx.translate(pointer.x*(layer+1)*12,pointer.y*(layer+1)*5)
     for(const b of buildings)if(b.layer===layer)building(ctx,b,t,warm,fog)
     if(layer===0){
       const haze=ctx.createLinearGradient(0,260,0,600);haze.addColorStop(0,'rgba(12,27,55,0)');haze.addColorStop(1,weather==='dust'?'rgba(255,133,65,.34)':'rgba(23,52,83,.33)');ctx.fillStyle=haze;ctx.fillRect(0,250,1440,370)
-      freighter(ctx, 1450-(t*43)%1750, 209+Math.sin(t*.4)*11,.62)
     }
     if(layer===1){
       ctx.strokeStyle='rgba(55,108,134,.32)';ctx.lineWidth=15;ctx.beginPath();ctx.moveTo(0,526);ctx.bezierCurveTo(400,491,900,565,1440,505);ctx.stroke()
@@ -171,7 +128,6 @@ function draw(ctx: CanvasRenderingContext2D, t: number, weather: Weather, day: D
       holoFigure(ctx,1278,215,t)
       ad(ctx,1020,234,83,130,'九','FUTURE','#ff2bd6',t)
       ad(ctx,34,294,83,130,'電','CYBERNETICS','#00f5ff',t)
-      for(let i=0;i<5;i++)car(ctx,(i*337+t*(i%2?31:-23)+3000)%1600-80,320+i*35,.45+i%2*.17,i%2?'#ff4765':'#00ddeb',t,i%2===0)
     }
     if(layer===2){
       // suspension rail and elevated access bridge
@@ -188,19 +144,14 @@ function draw(ctx: CanvasRenderingContext2D, t: number, weather: Weather, day: D
         ctx.strokeStyle='rgba(104,154,170,.24)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x+12,480);ctx.lineTo(x+12,690);ctx.stroke()
         for(let k=0;k<10;k++){ctx.fillStyle='rgba(103,160,169,.18)';ctx.fillRect(x+9,488+k*19,6,1)}
       }
-      car(ctx,(t*76+50)%1560-50,552,.92,'#00f5ff',t)
-      car(ctx,1530-(t*49)%1600,569,.72,'#ff4c64',t,true)
-      ornithopter(ctx,1500-(t*29)%1800,287+Math.sin(t*.3)*25,t)
     }
     ctx.restore()
   }
   if(plate?.complete && plate.naturalWidth){
     // Moving foreground traffic and live signal layers remain independent of the artwork.
-    freighter(ctx,1450-(t*43)%1750,205+Math.sin(t*.4)*11,.62)
-    for(let i=0;i<7;i++)car(ctx,(i*277+t*(i%2?31:-25)+3500)%1640-90,260+i*42,.48+(i%3)*.17,i%2?'#ff2bd6':'#00f5ff',t,i%2===0)
-    ornithopter(ctx,1550-(t*29)%1830,304+Math.sin(t*.3)*22,t)
     ad(ctx,1181,345,112,56,'新東京','NEON DISTRICT','#ff2bd6',t)
   }
+  drawCityTraffic(ctx,aircraft,t,pointer,special,reduced,mobile)
   // deep city traffic and pollution
   const cityFog=ctx.createLinearGradient(0,470,0,900);cityFog.addColorStop(0,'rgba(17,31,53,0)');cityFog.addColorStop(.55,weather==='dust'?'rgba(130,63,33,.23)':'rgba(8,25,43,.12)');cityFog.addColorStop(1,plate?'rgba(3,6,12,.40)':'rgba(3,6,12,.95)');ctx.fillStyle=cityFog;ctx.fillRect(0,470,1440,430)
   for(let i=0;i<50;i++){const x=rand(i*44)*1440,y=620+rand(i*12)*200;ctx.fillStyle=i%4===0?'rgba(255,58,118,.42)':'rgba(0,224,250,.31)';ctx.fillRect(x,y,2+rand(i*7)*5,1)}
@@ -231,10 +182,15 @@ export default function CityCanvas({ weather, dayPhase, special, pointer }: Prop
     const canvas=canvasRef.current; if(!canvas)return
     const ctx=canvas.getContext('2d',{alpha:false});if(!ctx)return
     const plate=new Image();plate.src=cityPlate
+    const aircraft:AircraftSprites={}
+    const disposeAircraft=loadAircraftSprites(aircraft)
     let frame=0,last=0,elapsed=0
     let priorKey=`${propsRef.current.weather}-${propsRef.current.dayPhase}-${propsRef.current.special}`
     let transitionImage:HTMLCanvasElement|null=null, transitionStart=0
-    const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const media=window.matchMedia('(prefers-reduced-motion: reduce)')
+    let reduced=media.matches
+    const updateMotion=()=>{reduced=media.matches}
+    media.addEventListener('change',updateMotion)
     const resize=()=>{const dpr=Math.min(devicePixelRatio||1,1.5);canvas.width=Math.round(canvas.clientWidth*dpr);canvas.height=Math.round(canvas.clientHeight*dpr)}
     resize();const observer=new ResizeObserver(resize);observer.observe(canvas)
     const loop=(now:number)=>{
@@ -246,11 +202,11 @@ export default function CityCanvas({ weather, dayPhase, special, pointer }: Prop
       const key=`${propsRef.current.weather}-${propsRef.current.dayPhase}-${propsRef.current.special}`
       if(key!==priorKey){transitionImage=document.createElement('canvas');transitionImage.width=w;transitionImage.height=h;transitionImage.getContext('2d')?.drawImage(canvas,0,0);transitionStart=now;priorKey=key}
       ctx.setTransform(scale,0,0,scale,(w-1440*scale)/2,(h-900*scale)/2)
-      draw(ctx,elapsed,propsRef.current.weather,propsRef.current.dayPhase,propsRef.current.special,propsRef.current.pointer,reduced,plate)
+      draw(ctx,elapsed,propsRef.current.weather,propsRef.current.dayPhase,propsRef.current.special,propsRef.current.pointer,reduced,plate,aircraft,canvas.clientWidth<600)
       if(transitionImage){const opacity=1-(now-transitionStart)/1600;if(opacity<=0)transitionImage=null;else{ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=opacity;ctx.drawImage(transitionImage,0,0,w,h);ctx.globalAlpha=1}}
     }
     frame=requestAnimationFrame(loop)
-    return()=>{cancelAnimationFrame(frame);observer.disconnect()}
+    return()=>{cancelAnimationFrame(frame);observer.disconnect();media.removeEventListener('change',updateMotion);disposeAircraft()}
   },[])
   return <canvas ref={canvasRef} className="city-canvas" aria-hidden="true" />
 }

@@ -1,57 +1,13 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
-import { addFood, createFish, stepFish, type Attraction, type Fish, type Food, type Vec } from './fishAI'
+import { addFood, createFish, stepFish, type Attraction, type Food, type Vec } from './fishAI'
 import reefPlate from '../assets/reef-interior.jpg'
 import { WaterMotion } from './RemotionEffects'
+import { drawFish, loadFishSprites, type FishSprites } from './FishVisuals'
+import { drawFood } from './FoodVisuals'
 
 export type AquariumHandle = { feed: () => void }
 type Ripple = Vec & { radius: number; alpha: number }
 type Bubble = Vec & { size: number; speed: number; phase: number }
-
-const fishColors: Record<Fish['kind'], [string,string,string]> = {
-  ember:['#ffca69','#f36b2f','#873337'], koi:['#ffecc3','#e58243','#e5e5dc'],
-  silver:['#f4fbff','#91b9cf','#567b9c'], shadow:['#f8bc6d','#3e5264','#131a2e'],
-  cyber:['#a5fbff','#22b5d2','#684fd4']
-}
-
-function drawFish(ctx: CanvasRenderingContext2D, f: Fish, time: number, w: number, h: number) {
-  const s=(18+f.size*24)*(.78+f.depth*.38)*Math.max(.9,w/850)
-  ctx.save();ctx.translate(f.x*w,f.y*h);ctx.rotate(f.angle);ctx.scale(s,s)
-  ctx.globalAlpha=.62+f.depth*.38
-  const [light,main,dark]=fishColors[f.kind]
-  const wave=Math.sin(time*7.4+f.phase)*.22
-  // far pectoral fin
-  ctx.save();ctx.rotate(Math.sin(time*5+f.phase)*.14);ctx.fillStyle=dark;ctx.globalAlpha*=.65
-  ctx.beginPath();ctx.moveTo(-.18,.12);ctx.quadraticCurveTo(-.35,.55,-.03,.57);ctx.quadraticCurveTo(.15,.27,-.18,.12);ctx.fill();ctx.restore()
-  // large articulated tail
-  ctx.save();ctx.translate(-.72,0);ctx.rotate(wave)
-  const tg=ctx.createLinearGradient(-.9,0,0,0);tg.addColorStop(0,dark);tg.addColorStop(.4,main);tg.addColorStop(1,light)
-  ctx.fillStyle=tg;ctx.beginPath();ctx.moveTo(0,0);ctx.bezierCurveTo(-.3,-.12,-.47,-.69,-.91,-.71);ctx.quadraticCurveTo(-.64,-.15,-.69,0);ctx.quadraticCurveTo(-.6,.22,-.93,.74);ctx.bezierCurveTo(-.48,.72,-.2,.1,0,0);ctx.fill()
-  ctx.strokeStyle=light;ctx.lineWidth=.014;ctx.globalAlpha=.5
-  for(let i=-2;i<=2;i++){ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(-.84, i*.31);ctx.stroke()}
-  ctx.restore()
-  // dorsal fin
-  ctx.fillStyle=dark;ctx.beginPath();ctx.moveTo(-.36,-.24);ctx.quadraticCurveTo(-.33,-.67,-.04,-.75);ctx.quadraticCurveTo(.15,-.6,.25,-.36);ctx.fill()
-  // body volume
-  const g=ctx.createRadialGradient(.18,-.21,.05,-.08,.13,.95);g.addColorStop(0,light);g.addColorStop(.42,main);g.addColorStop(1,dark)
-  ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(-.8,0);ctx.bezierCurveTo(-.55,-.35,.35,-.49,.85,-.17);ctx.quadraticCurveTo(1.08,0,.85,.17);ctx.bezierCurveTo(.35,.49,-.55,.35,-.8,0);ctx.fill()
-  if(f.kind==='koi'||f.kind==='shadow'){
-    ctx.fillStyle=f.kind==='koi'?'#6e4044':'#101421';ctx.globalAlpha=.7
-    ctx.beginPath();ctx.ellipse(-.29,-.13,.21,.11,-.2,0,Math.PI*2);ctx.fill()
-    ctx.beginPath();ctx.ellipse(.24,.22,.16,.09,.25,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1
-  }
-  if(f.kind==='cyber'){
-    ctx.strokeStyle='#00f5ff';ctx.lineWidth=.025;ctx.shadowColor='#00f5ff';ctx.shadowBlur=.17
-    ctx.beginPath();ctx.moveTo(-.6,0);ctx.lineTo(.52,0);ctx.stroke();ctx.shadowBlur=0
-  }
-  // near fin and gill
-  ctx.fillStyle=main;ctx.globalAlpha=.82
-  ctx.save();ctx.translate(.13,.18);ctx.rotate(Math.sin(time*9+f.phase)*.22)
-  ctx.beginPath();ctx.moveTo(0,0);ctx.quadraticCurveTo(-.2,.44,.12,.57);ctx.quadraticCurveTo(.28,.27,0,0);ctx.fill();ctx.restore()
-  ctx.strokeStyle='rgba(46,31,37,.42)';ctx.lineWidth=.025;ctx.beginPath();ctx.arc(.48,0,.17,-1.1,1.12);ctx.stroke()
-  ctx.fillStyle='#101622';ctx.beginPath();ctx.arc(.66,-.13,.065,0,Math.PI*2);ctx.fill()
-  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(.677,-.15,.018,0,Math.PI*2);ctx.fill()
-  ctx.restore()
-}
 
 function plant(ctx:CanvasRenderingContext2D,x:number,h:number,t:number,color:string,phase:number){
   ctx.save();ctx.translate(x,h);ctx.strokeStyle=color;ctx.lineCap='round';ctx.lineWidth=2.3
@@ -73,18 +29,25 @@ const Aquarium=forwardRef<AquariumHandle>(function Aquarium(_,ref){
   const canvasRef=useRef<HTMLCanvasElement>(null)
   const fish=useRef(createFish())
   const food=useRef<Food[]>([])
+  const glitchPulse=useRef(0)
+  const effectClock=useRef(0)
   const pointer=useRef<Vec|null>(null)
   const attraction=useRef<Attraction|null>(null)
   const ripples=useRef<Ripple[]>([])
   const bubbles=useRef<Bubble[]>(Array.from({length:30},(_,i)=>({x:.08+(i*37%87)/100,y:(i*31%100)/100,size:1+i%3,speed:.025+(i%5)*.009,phase:i*1.3})))
-  useImperativeHandle(ref,()=>({feed:()=>{addFood(food.current);ripples.current.push({x:.5,y:.06,radius:.02,alpha:.7})}}),[])
+  useImperativeHandle(ref,()=>({feed:()=>{addFood(food.current);glitchPulse.current=1.25;ripples.current.push({x:.5,y:.06,radius:.02,alpha:.7})}}),[])
 
   useEffect(()=>{
     const canvas=canvasRef.current;if(!canvas)return
     const ctx=canvas.getContext('2d');if(!ctx)return
     const reef=new Image();reef.src=reefPlate
+    const sprites:FishSprites={}
+    const disposeSprites=loadFishSprites(sprites)
     let frame=0,last=0,time=0
-    const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const media=window.matchMedia('(prefers-reduced-motion: reduce)')
+    let reduced=media.matches
+    const updateMotion=()=>{reduced=media.matches}
+    media.addEventListener('change',updateMotion)
     const resize=()=>{const dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(canvas.clientWidth*dpr);canvas.height=Math.round(canvas.clientHeight*dpr)}
     resize();const observer=new ResizeObserver(resize);observer.observe(canvas)
     const loop=(now:number)=>{
@@ -113,25 +76,26 @@ const Aquarium=forwardRef<AquariumHandle>(function Aquarium(_,ref){
       ctx.save();ctx.translate(w*.5,h*.91);ctx.shadowColor='#00e7ec';ctx.shadowBlur=18;ctx.fillStyle='#152d3b';ctx.fillRect(-w*.07,-h*.08,w*.14,h*.07);ctx.strokeStyle='#4be6f2';ctx.lineWidth=2;ctx.strokeRect(-w*.065,-h*.073,w*.13,h*.055);ctx.fillStyle='#00dceb';ctx.fillRect(-w*.027,-h*.064,w*.054,h*.03);ctx.restore()
       for(const b of bubbles.current){b.y-=b.speed*dt;if(b.y<-.02){b.y=1.02;b.x=.05+Math.random()*.9}const x=(b.x+Math.sin(time*1.2+b.phase)*.006)*w,y=b.y*h;ctx.strokeStyle='rgba(147,243,255,.28)';ctx.lineWidth=1;ctx.beginPath();ctx.arc(x,y,b.size*(w/700),0,Math.PI*2);ctx.stroke()}
       stepFish(fish.current,food.current,attraction.current,pointer.current,dt,time)
-      for(const pellet of food.current){ctx.shadowColor='#ffca78';ctx.shadowBlur=9;ctx.fillStyle='#f4b875';ctx.beginPath();ctx.arc(pellet.x*w,pellet.y*h,2.4*w/700,0,Math.PI*2);ctx.fill()}ctx.shadowBlur=0
-      for(const f of [...fish.current].sort((a,b)=>a.depth-b.depth))drawFish(ctx,f,time,w,h)
+      glitchPulse.current=Math.max(0,glitchPulse.current-dt)
+      for(const pellet of food.current)drawFood(ctx,pellet,time,w,h,reduced,w/canvas.clientWidth)
+      for(const f of [...fish.current].sort((a,b)=>a.depth-b.depth))drawFish(ctx,f,time,w,h,sprites,reduced,glitchPulse.current,effectClock.current)
       for(let i=ripples.current.length-1;i>=0;i--){const r=ripples.current[i];r.radius+=dt*.25;r.alpha-=dt*.65;if(r.alpha<=0){ripples.current.splice(i,1);continue}ctx.strokeStyle=`rgba(161,249,255,${r.alpha})`;ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(r.x*w,r.y*h,r.radius*w,r.radius*h*.4,0,0,Math.PI*2);ctx.stroke()}
       const edge=ctx.createLinearGradient(0,0,w,0);edge.addColorStop(0,'rgba(0,7,18,.75)');edge.addColorStop(.08,'rgba(0,7,18,0)');edge.addColorStop(.92,'rgba(0,7,18,0)');edge.addColorStop(1,'rgba(0,7,18,.75)');ctx.fillStyle=edge;ctx.fillRect(0,0,w,h)
     }
     frame=requestAnimationFrame(loop)
-    return()=>{cancelAnimationFrame(frame);observer.disconnect()}
+    return()=>{cancelAnimationFrame(frame);observer.disconnect();media.removeEventListener('change',updateMotion);disposeSprites()}
   },[])
 
   const locate=(e:React.PointerEvent<HTMLCanvasElement>)=>{const r=e.currentTarget.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height}}
-  return <div className="aquarium" aria-label="Interactive aquarium with six swimming fish">
+  return <div className="aquarium" aria-label="包含九种赛博鱼类的交互式鱼缸">
     <div className="tank-top"><span>NEONABYSS <b>△</b> BIOSPHERE 09</span><span>◉ LIVE ECOSYSTEM</span></div>
     <div className="tank-side left"><i/><i/><i/><i/></div><div className="tank-side right"><i/><i/><i/><i/></div>
     <div className="tank-glass">
-      <canvas ref={canvasRef} className="fish-canvas" onPointerMove={e=>{pointer.current=locate(e)}} onPointerLeave={()=>{pointer.current=null}} onPointerDown={e=>{const p=locate(e);attraction.current={...p,ttl:3};ripples.current.push({...p,radius:.02,alpha:.8})}} aria-label="Tap the water to attract the fish" />
-      <WaterMotion />
+      <canvas ref={canvasRef} className="fish-canvas" onPointerMove={e=>{pointer.current=locate(e)}} onPointerLeave={()=>{pointer.current=null}} onPointerDown={e=>{const p=locate(e);attraction.current={...p,ttl:3};ripples.current.push({...p,radius:.02,alpha:.8})}} role="button" tabIndex={0} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();attraction.current={x:.5,y:.4,ttl:3};ripples.current.push({x:.5,y:.4,radius:.02,alpha:.8})}}} aria-label="点击水面或按回车键吸引鱼群" />
+      <WaterMotion clockRef={effectClock}/>
       <div className="glass-reflection"/><div className="water-label">BIOSPHERE ONLINE <span>●</span></div><div className="depth-markings">20<br/>40<br/>60</div>
     </div>
-    <div className="tank-base"><div className="base-vent"/><div className="base-core"/><div className="base-readout"><small>CORE TEMP</small><strong>24.6°C</strong></div><div className="base-warning">⚠ BIOLOGICAL LIFEFORM<br/>DETECTED / 06</div><div className="base-vent"/></div>
+    <div className="tank-base"><div className="base-vent"/><div className="base-core"/><div className="base-readout"><small>CORE TEMP</small><strong>24.6°C</strong></div><div className="base-warning">⚠ BIOLOGICAL LIFEFORM<br/>DETECTED / 09</div><div className="base-vent"/></div>
     <div className="tank-foot left"/><div className="tank-foot right"/>
   </div>
 })
