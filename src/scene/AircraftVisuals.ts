@@ -72,7 +72,7 @@ export function drawCityTraffic(ctx: CanvasRenderingContext2D, sprites: Aircraft
     const x = ((890 + i * 309 + t * (reverse ? -15 : 18)) % 1710 + 1710) % 1710 - 130
     aircraft(ctx, sprites, 'shuttle', x, 152 + i * 43, 42 + i % 3 * 13, t, reverse, .88, reduced)
   }
-  if (special) aircraft(ctx, sprites, 'cruiser', 1060 + Math.sin(t * .04) * 100, 158, 590, t, false, .44, reduced)
+  if (special) aircraft(ctx, sprites, 'cruiser', 1060 + Math.sin(t * .04) * 100, 158, 590, t, true, .44, reduced)
   ctx.restore()
   ctx.save(); ctx.translate(pointer.x * 14, pointer.y * 8)
   aircraft(ctx, sprites, 'freighter', 1650 - (t * 18 + 620) % 2030, 302 + Math.sin(t * .12) * 17, 158, t, true, .55, reduced)
