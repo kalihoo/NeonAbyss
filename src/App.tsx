@@ -62,7 +62,7 @@ function App() {
       <div className="top-status"><span className="live-dot"/> BIOSPHERE ONLINE <em>／</em> NEURAL LINK CONNECTED <div className="top-time">{clock.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</div></div>
     </header>
 
-    <div className="scene-side left-side" aria-hidden="true"><span>01 / OBSERVATION DECK</span><div className="side-line"/><small>生命在深渊中发光</small></div>
+    <div className="scene-side left-side" aria-hidden="true"><span>01 / OBSERVATION DECK</span><div className="side-line"/></div>
     <div className="scene-side right-side" aria-hidden="true"><span>NIGHT CITY / SECTOR 09</span><div className="side-line"/><small>ENVIRONMENT / {weather.toUpperCase()}</small></div>
 
     <section className="centerpiece" aria-label="NeonAbyss interactive aquarium">
