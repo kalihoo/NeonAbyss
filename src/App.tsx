@@ -6,7 +6,7 @@ import { deleteUploadedFish, getUploadedFish, saveUploadedFish, type UploadedFis
 
 const maxCustomFish = 6
 const maxFishImageBytes = 8 * 1024 * 1024
-const maxFishImagePixels = 6_000_000
+const maxFishImagePixels = 2_500_000
 
 function readImageDimensions(file: File) {
   return new Promise<{width:number;height:number}>((resolve,reject)=>{
@@ -69,7 +69,7 @@ function App() {
       if(file.size>maxFishImageBytes){rejected.push(`${file.name}：图片不能超过 8 MB`);continue}
       try{
         const {width,height}=await readImageDimensions(file)
-        if(width<64||height<32||width>4096||height>4096||width*height>maxFishImagePixels){rejected.push(`${file.name}：图片尺寸需在 64×32 至 4096×4096 之间，且不超过 600 万像素`);continue}
+        if(width<64||height<32||width>4096||height>4096||width*height>maxFishImagePixels){rejected.push(`${file.name}：图片尺寸需在 64×32 至 4096×4096 之间，且不超过 250 万像素`);continue}
         const record:UploadedFish={id:typeof crypto.randomUUID==='function'?crypto.randomUUID():`${Date.now()}-${Math.random().toString(36).slice(2)}`,name:file.name.slice(0,80),blob:file,createdAt:Date.now()+added.length}
         await saveUploadedFish(record)
         added.push(record);remaining-=1
