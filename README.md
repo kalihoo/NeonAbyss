@@ -1,30 +1,34 @@
 # NeonAbyss
 
-An interactive cyberpunk aquarium overlooking a living megacity. Nine independently simulated cybernetic species swim through an illuminated habitat while detailed aircraft, rain, weather, and holographic systems animate around them.
+NeonAbyss 是一款沉浸式赛博朋克交互金鱼缸。夜雨中的霓虹巨城作为背景，九种预设机械鱼在水族舱中独立游动；飞行汽车、飞船、天气、灯光和全息界面共同构成持续运转的未来城市生态。
 
-## Run locally
+## 本地运行
+
+需要安装 Node.js 和 npm。在项目目录中执行：
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open the printed local URL. Use `npm test` for fish-behavior tests and `npm run build` for the production build.
+打开终端显示的本地地址即可体验。运行 `npm test` 可执行鱼群行为测试，运行 `npm run build` 可生成生产版本。
 
-## Controls
+## 页面操作
 
-- **Tap or click the water** to create a ripple and attract nearby fish.
-- **上传鱼图** adds up to six PNG, JPG, or WebP fish images. Custom fish swim in the tank with directional turns and cyber glitch flashes. Images are stored locally in the current browser for this site, with a gallery to preview and remove them; transparent landscape images work best.
-- **投喂鱼群** drops miniature microchips, twin-fan graphics cards, and luminous cyber gears. Components tumble as they sink; fish detect, pursue, and consume them.
-- **天气** switches among Night Rain, Neon Fog, Dust Storm, and Clear Night.
-- **时段** switches among Night City, Blue Hour, and Sunset.
-- **系统状态** opens the simulated biosphere readouts.
-- **特殊模式** triggers the hidden cinematic special mode.
+- **点击或触摸水族舱**：在水面产生涟漪，并吸引附近的鱼群。键盘聚焦水族舱后，可按 Enter 或空格键触发。
+- **投喂鱼群**：投下芯片、双风扇显卡和发光赛博齿轮。电子元件会翻转下沉，鱼群会发现、追逐并吞食它们。
+- **上传鱼图**：从页面右下角添加 PNG、JPG 或 WebP 图片，最多添加 6 条自定义鱼。每张图片不超过 8 MB；尺寸需至少为 64×32、宽高不超过 4096，且总像素不超过 250 万。建议使用透明背景的横向鱼图，主体更容易融入水族舱。
+- **管理鱼图**：通过上传入口旁的鱼图按钮打开列表，可预览或移除已添加的图片。
+- **图片保存位置**：鱼图保存在当前浏览器为本站分配的本地 IndexedDB 中，刷新后仍会保留；不会上传到服务器，也不会在设备或浏览器之间同步。清除本站的浏览器数据会一并清除这些鱼图。
+- **天气**：在夜雨、霓虹迷雾、沙尘暴和晴朗夜空之间切换。
+- **时段**：在夜之城、蓝调时刻和落日余晖之间切换。
+- **系统状态**：打开生态状态面板，查看水温、含氧量、酸碱度、水质和鱼类数量。
+- **特殊模式**：播放扫描光束、霓虹激活、能源核心点亮和巨舰现身的连续演出。
 
-## Implementation
+## 实现说明
 
-React and TypeScript handle controls. Canvas renders independently moving fish, food, weather, and traffic without React state updates on every frame. Each fish has its own transparent, detailed species artwork, animated through a continuous tail mesh. Side-profile turning keeps fish upright. Remotion Player drives the water-light loop, scanning beam, local fish-glitch timing, and the special-mode sequence. Feeding briefly activates chromatic signal ghosts on individual fish. Reduced-motion preferences disable the glitch and scanning layer.
+项目使用 React、TypeScript 和 Vite。Canvas 绘制鱼群、投喂物和连续变化的水下场景；React 负责控件、状态面板和上传鱼图管理。Remotion Player 驱动水面光影、扫描效果、鱼身屏闪和特殊模式演出。鱼群拥有独立的移动轨迹、转向、速度变化和深度层次，并会根据投喂与光标互动。
 
-Tilt-rotor shuttles, a reference-inspired enclosed-fan flying car, a cargo aircraft, and the special-mode cruiser use detailed local sprites. The car follows the former ornithopter lane with a steady leftward hover glide. Distant traffic passes behind skyline silhouettes, with depth-dependent contrast and softness. Original local city and reef artwork provide depth behind the live animation; the project makes no runtime requests for remote imagery or fonts. See [visual assets and reference sources](docs/visual-assets.md) for the generation brief, assets, and aircraft references.
+飞行器由本地素材呈现，包括倾转旋翼机、封闭式风扇飞行汽车、货运飞行器和特殊模式巨舰。城市和珊瑚礁背景也使用项目内素材；网页运行时不依赖外部图片或字体链接。页面会响应屏幕尺寸，并遵循系统的减少动态效果设置。
 
-All control names, weather/time options, accessible labels, and the diagnostics panel are localized into Chinese. The ecosystem measurements are decorative simulations, not readings from physical sensors.
+水族状态面板中的读数均为动画模拟数据，不来自真实传感器。视觉素材与参考来源说明见[视觉素材文档](docs/visual-assets.md)。
