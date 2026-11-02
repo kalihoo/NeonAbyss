@@ -35,7 +35,6 @@ function plant(ctx:CanvasRenderingContext2D,x:number,h:number,t:number,color:str
 
 const Aquarium=forwardRef<AquariumHandle, AquariumProps>(function Aquarium({customFish,uploadStatus,onUploadFiles,onRemoveCustomFish},ref){
   const canvasRef=useRef<HTMLCanvasElement>(null)
-  const fileInputRef=useRef<HTMLInputElement>(null)
   const fish=useRef(createFish())
   const sprites=useRef<FishSprites>({})
   const customSpriteLoads=useRef(new Map<string,{url:string;cancel:()=>void}>())
@@ -137,8 +136,10 @@ const Aquarium=forwardRef<AquariumHandle, AquariumProps>(function Aquarium({cust
       <WaterMotion clockRef={effectClock}/>
       <div className="glass-reflection"/><div className="water-label">BIOSPHERE ONLINE <span>●</span></div><div className="depth-markings">20<br/>40<br/>60</div>
       <div className="custom-fish-tools">
-        <button className="fish-upload-button" onClick={()=>fileInputRef.current?.click()} aria-label="上传鱼的图片到鱼缸" title="仅保存到当前浏览器的本站；支持 PNG、JPG、WebP，最多 6 条鱼"><span>＋</span> 上传鱼图</button>
-        <input ref={fileInputRef} className="fish-file-input" type="file" accept="image/png,image/jpeg,image/webp" multiple onChange={e=>{const files=Array.from(e.currentTarget.files??[]);if(files.length)onUploadFiles(files);e.currentTarget.value=''}} aria-label="选择鱼类图片" />
+        <label className="fish-upload-button" title="仅保存到当前浏览器的本站；支持 PNG、JPG、WebP，最多 6 条鱼">
+          <input className="fish-file-input" type="file" accept="image/png,image/jpeg,image/webp" multiple onChange={e=>{const files=Array.from(e.currentTarget.files??[]);if(files.length)onUploadFiles(files);e.currentTarget.value=''}} aria-label="上传鱼的图片到鱼缸" />
+          <span>＋</span> 上传鱼图
+        </label>
         {customFish.length>0&&<button className="fish-library-toggle" onClick={()=>setLibraryOpen(v=>!v)} aria-expanded={libraryOpen} aria-label={`管理已上传的 ${customFish.length} 条鱼图`}>鱼图 / {customFish.length}</button>}
       </div>
       {libraryOpen&&<section className="fish-library-panel" aria-label="管理自定义鱼图">
