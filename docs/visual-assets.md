@@ -4,7 +4,7 @@ The user's nine-species image is the visual reference for the fish. The implemen
 
 ## Fish assets
 
-Generated using the built-in image generation tool with true alpha requested. Fish assets are packaged at 896 pixels wide as WebP quality 92 with full alpha quality, reducing transfer size while retaining detail above their display resolution. The aircraft atlas uses WebP quality 94. Runtime alpha-bound trimming removes empty space without changing the artwork. Cyan and magenta masks are cached once for brief local chromatic glitches.
+Generated using the built-in image generation tool with true alpha requested. Fish assets are packaged at 896 pixels wide as WebP quality 92 with full alpha quality, reducing transfer size while retaining detail above their display resolution. The aircraft atlas uses WebP quality 94; the separate flying-car cutout uses WebP quality 92 with full alpha quality. Runtime alpha-bound trimming removes empty space without changing the artwork. Cyan and magenta masks are cached once for brief local chromatic glitches.
 
 | Asset in `src/assets/` | Species and distinctive form |
 | --- | --- |
@@ -26,7 +26,13 @@ Each species was generated separately with this production brief, substituting i
 
 ## Aircraft atlas
 
-`src/assets/aircraft-atlas.webp` is an original transparent 2 × 2 production atlas with a tilt-rotor shuttle, articulated ornithopter, disk cargo aircraft, and wedge cruiser. The runtime extracts each cell once; animated traffic does not draw the previous polygon stand-ins.
+`src/assets/aircraft-atlas.webp` is the original transparent 2 × 2 source atlas with a tilt-rotor shuttle, articulated ornithopter, disk cargo aircraft, and wedge cruiser. Runtime traffic now extracts the shuttle, cargo aircraft, and cruiser; the former ornithopter cell is no longer displayed. Its lane uses the separate `src/assets/flying-car.webp` sprite instead.
+
+### Flying-car sprite
+
+`src/assets/flying-car.webp` is a separate original transparent CGI cutout generated from the user's three vehicle references. It combines the low, smooth sedan body, enclosed circular lift fans, and dark neon-city finish. The car faces left and follows the former ornithopter's leftward lane with a gentle hover glide.
+
+> Use case: stylized-concept. Transparent cutout sprite for a cyberpunk city Canvas animation. Create one original flying car inspired by a low electric sedan with enclosed circular lift fans, a sleek black rear-view flying car above a city, and a dark luxury vehicle among neon towers. Low smooth aerodynamic sedan, broad glass canopy, sculpted wheel arches, two compact rear-quarter ducted lift pods, restrained cyan and red-magenta light strips, deep graphite ceramic body with soft silver rim light. Full horizontal vehicle in three-quarter side view, nose clearly pointing left, rear pointing right. Readable at roughly 150 CSS pixels. No background, ground, shadow plane, wings, text, logos, watermark, extra vehicles, or clipped bodywork.
 
 ### Aircraft reference photographs
 
@@ -45,5 +51,5 @@ These references inform the original futuristic designs; the cargo aircraft and 
 - Remotion's frame clock synchronizes the low-opacity scanning pass and staggered, brief fish signal glitches. Chromatic ghosts and shifted scan slices affect individual fish rather than the whole viewport.
 - Turning mirrors the species artwork and bounds pitch; a leftward fish remains upright.
 - Edible energy components are original Canvas drawings: chips have gold contacts and etched circuitry, graphics cards have two spinning fans and a luminous rim, and cyber gears have beveled teeth and emissive hubs. Their tumble, sinking, and consumption share the existing feeding simulation. Minimum display sizes keep them recognizable on phones.
-- Aircraft have separate lane speeds, scales and depth. Far lanes are clipped by skyline silhouettes. The ornithopter's wing tips lag the root through each flap. Its sprite is mirrored to face left, matching its leftward flight path. Positive modulo keeps reverse distant lanes looping indefinitely.
+- Aircraft have separate lane speeds, scales and depth. Far lanes are clipped by skyline silhouettes. The flying car faces left and glides steadily in the former ornithopter lane. Positive modulo keeps reverse distant lanes looping indefinitely.
 - Hidden-page handling pauses scene animation and the ambient Remotion player. Reduced-motion preference disables fish flashes and the scanning layer; mobile renders fewer distant aircraft and fewer mesh strips.

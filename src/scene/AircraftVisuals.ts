@@ -1,20 +1,24 @@
 import aircraftAtlas from '../assets/aircraft-atlas.webp'
+import flyingCarAsset from '../assets/flying-car.webp'
 import { extractSprite, type Sprite } from './sprites'
 
-type Kind = 'shuttle' | 'ornithopter' | 'freighter' | 'cruiser'
+type Kind = 'shuttle' | 'flyingCar' | 'freighter' | 'cruiser'
 export type AircraftSprites = Partial<Record<Kind, Sprite>>
 
 export function loadAircraftSprites(sprites: AircraftSprites) {
   const image = new Image()
+  const car = new Image()
   let cancelled = false
   image.onload = () => {
     if (cancelled) return
     const w = image.naturalWidth / 2, h = image.naturalHeight / 2
-    const kinds: Kind[] = ['shuttle', 'ornithopter', 'freighter', 'cruiser']
-    kinds.forEach((kind, i) => { sprites[kind] = extractSprite(image, i % 2 * w, Math.floor(i / 2) * h, w, h) })
+    const kinds: (Kind | null)[] = ['shuttle', null, 'freighter', 'cruiser']
+    kinds.forEach((kind, i) => { if (kind) sprites[kind] = extractSprite(image, i % 2 * w, Math.floor(i / 2) * h, w, h) })
   }
+  car.onload = () => { if (!cancelled) sprites.flyingCar = extractSprite(car, 0, 0, car.naturalWidth, car.naturalHeight) }
   image.src = aircraftAtlas
-  return () => { cancelled = true; image.onload = null }
+  car.src = flyingCarAsset
+  return () => { cancelled = true; image.onload = null; car.onload = null }
 }
 
 function aircraft(ctx: CanvasRenderingContext2D, sprites: AircraftSprites, kind: Kind, x: number, y: number, width: number, time: number, reverse = false, distance = .3, reduced = false) {
@@ -27,27 +31,13 @@ function aircraft(ctx: CanvasRenderingContext2D, sprites: AircraftSprites, kind:
   ctx.scale(reverse ? -1 : 1, 1)
   ctx.globalAlpha *= 1 - distance * .45
   if (distance > .7) ctx.filter = 'blur(.45px) saturate(.7)'
-  if (kind === 'ornithopter' && !reduced) {
-    // The carbon feather panels flex around the fixed fuselage. The root-to-tip
-    // phase lag gives the outer wing its own twist instead of scaling a cross.
-    const cols = 48
-    for (let i = 0; i < cols; i++) {
-      const u = i / cols
-      const tip = u < .63 ? (.63 - u) / .63 : (u - .63) / .37
-      const beat = Math.sin(time * 8.6 - tip * .85)
-      const bend = Math.pow(tip, 1.4) * beat * width * .13
-      const sx = u * sprite.width, sw = Math.min(sprite.width / cols + .6, sprite.width - sx)
-      ctx.drawImage(sprite.image, sx, 0, sw, sprite.height, (u - .5) * width, -height / 2 + bend, sw / sprite.width * width, height)
-    }
-  } else ctx.drawImage(sprite.image, -width / 2, -height / 2, width, height)
+  ctx.drawImage(sprite.image, -width / 2, -height / 2, width, height)
   ctx.filter = 'none'
-  if (kind !== 'ornithopter') {
-    const engineX = -width * .4, engineY = height * .17
-    const glow = ctx.createRadialGradient(engineX, engineY, 0, engineX, engineY, width * .095)
-    glow.addColorStop(0, kind === 'shuttle' ? 'rgba(255,53,181,.23)' : 'rgba(82,204,255,.25)')
-    glow.addColorStop(1, 'rgba(35,134,255,0)')
-    ctx.fillStyle = glow; ctx.fillRect(engineX - width * .1, engineY - width * .1, width * .2, width * .2)
-  }
+  const engineX = kind === 'flyingCar' ? width * .4 : -width * .4, engineY = height * .17
+  const glow = ctx.createRadialGradient(engineX, engineY, 0, engineX, engineY, width * .095)
+  glow.addColorStop(0, kind === 'shuttle' ? 'rgba(255,53,181,.23)' : 'rgba(82,204,255,.25)')
+  glow.addColorStop(1, 'rgba(35,134,255,0)')
+  ctx.fillStyle = glow; ctx.fillRect(engineX - width * .1, engineY - width * .1, width * .2, width * .2)
   ctx.restore()
 }
 
@@ -78,6 +68,8 @@ export function drawCityTraffic(ctx: CanvasRenderingContext2D, sprites: Aircraft
   aircraft(ctx, sprites, 'freighter', 1650 - (t * 18 + 620) % 2030, 302 + Math.sin(t * .12) * 17, 158, t, true, .55, reduced)
   aircraft(ctx, sprites, 'shuttle', (t * 29 + 1020) % 1840 - 120, 190, 137, t, false, .28, reduced)
   if (!mobile) aircraft(ctx, sprites, 'shuttle', 1700 - (t * 37 + 1410) % 2020, 338, 164, t, true, .16, reduced)
-  aircraft(ctx, sprites, 'ornithopter', 1680 - (t * 20 + 440) % 2000, 174 + Math.sin(t * .18) * 15, 170, t, true, .25, reduced)
+  // The reference-inspired flying car faces left in its own sprite and follows
+  // this same leftward lane with a steady hover glide instead of flapping.
+  aircraft(ctx, sprites, 'flyingCar', 1680 - (t * 20 + 440) % 2000, 174 + Math.sin(t * .18) * 15, 190, t, false, .25, reduced)
   ctx.restore()
 }
