@@ -1,11 +1,19 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { addFood, createFish, stepFish, type Attraction, type Food, type Vec } from './fishAI'
 import reefPlate from '../assets/reef-interior.jpg'
 import { WaterMotion } from './RemotionEffects'
 import { drawFish, loadFishSprites, type FishSprites } from './FishVisuals'
 import { drawFood } from './FoodVisuals'
+import { loadSprite } from './sprites'
+import type { UploadedFish } from './customFishStorage'
 
 export type AquariumHandle = { feed: () => void }
+type AquariumProps = {
+  customFish: UploadedFish[]
+  uploadStatus: string
+  onUploadFiles: (files: File[]) => void
+  onRemoveCustomFish: (id: string) => void
+}
 type Ripple = Vec & { radius: number; alpha: number }
 type Bubble = Vec & { size: number; speed: number; phase: number }
 
@@ -25,9 +33,14 @@ function plant(ctx:CanvasRenderingContext2D,x:number,h:number,t:number,color:str
   ctx.restore()
 }
 
-const Aquarium=forwardRef<AquariumHandle>(function Aquarium(_,ref){
+const Aquarium=forwardRef<AquariumHandle, AquariumProps>(function Aquarium({customFish,uploadStatus,onUploadFiles,onRemoveCustomFish},ref){
   const canvasRef=useRef<HTMLCanvasElement>(null)
+  const fileInputRef=useRef<HTMLInputElement>(null)
   const fish=useRef(createFish())
+  const sprites=useRef<FishSprites>({})
+  const customSpriteLoads=useRef(new Map<string,{url:string;cancel:()=>void}>())
+  const [libraryOpen,setLibraryOpen]=useState(false)
+  const [previewUrls,setPreviewUrls]=useState<Record<string,string>>({})
   const food=useRef<Food[]>([])
   const glitchPulse=useRef(0)
   const effectClock=useRef(0)
@@ -38,11 +51,40 @@ const Aquarium=forwardRef<AquariumHandle>(function Aquarium(_,ref){
   useImperativeHandle(ref,()=>({feed:()=>{addFood(food.current);glitchPulse.current=1.25;ripples.current.push({x:.5,y:.06,radius:.02,alpha:.7})}}),[])
 
   useEffect(()=>{
+    const wanted=new Set(customFish.map(item=>item.id))
+    fish.current=fish.current.filter(f=>!f.kind.startsWith('custom:')||wanted.has(f.kind.slice(7)))
+    for(const [id,load] of customSpriteLoads.current){
+      if(wanted.has(id))continue
+      load.cancel();URL.revokeObjectURL(load.url);customSpriteLoads.current.delete(id)
+      delete sprites.current[`custom:${id}`]
+    }
+    customFish.forEach((item,index)=>{
+      const kind=`custom:${item.id}` as const
+      if(!fish.current.some(f=>f.kind===kind))fish.current.push({id:100+index,kind,x:.18+Math.random()*.64,y:.22+Math.random()*.48,vx:index%2?-.025:.025,vy:(Math.random()-.5)*.018,angle:index%2?Math.PI:0,size:.58+(index%3)*.08,depth:.42+(index%4)*.13,phase:index*1.53,wander:{x:.5,y:.5},wanderTimer:0})
+      if(customSpriteLoads.current.has(item.id))return
+      const url=URL.createObjectURL(item.blob)
+      const cancel=loadSprite(url,sprite=>{sprites.current[kind]=sprite},true)
+      customSpriteLoads.current.set(item.id,{url,cancel})
+    })
+  },[customFish])
+
+  useEffect(()=>()=>{
+    for(const load of customSpriteLoads.current.values()){load.cancel();URL.revokeObjectURL(load.url)}
+    customSpriteLoads.current.clear()
+  },[])
+
+  useEffect(()=>{
+    const urls:Record<string,string>={}
+    for(const item of customFish)urls[item.id]=URL.createObjectURL(item.blob)
+    setPreviewUrls(urls)
+    return()=>Object.values(urls).forEach(URL.revokeObjectURL)
+  },[customFish])
+
+  useEffect(()=>{
     const canvas=canvasRef.current;if(!canvas)return
     const ctx=canvas.getContext('2d');if(!ctx)return
     const reef=new Image();reef.src=reefPlate
-    const sprites:FishSprites={}
-    const disposeSprites=loadFishSprites(sprites)
+    const disposeSprites=loadFishSprites(sprites.current)
     let frame=0,last=0,time=0
     const media=window.matchMedia('(prefers-reduced-motion: reduce)')
     let reduced=media.matches
@@ -78,7 +120,7 @@ const Aquarium=forwardRef<AquariumHandle>(function Aquarium(_,ref){
       stepFish(fish.current,food.current,attraction.current,pointer.current,dt,time)
       glitchPulse.current=Math.max(0,glitchPulse.current-dt)
       for(const pellet of food.current)drawFood(ctx,pellet,time,w,h,reduced,w/canvas.clientWidth)
-      for(const f of [...fish.current].sort((a,b)=>a.depth-b.depth))drawFish(ctx,f,time,w,h,sprites,reduced,glitchPulse.current,effectClock.current)
+      for(const f of [...fish.current].sort((a,b)=>a.depth-b.depth))drawFish(ctx,f,time,w,h,sprites.current,reduced,glitchPulse.current,effectClock.current)
       for(let i=ripples.current.length-1;i>=0;i--){const r=ripples.current[i];r.radius+=dt*.25;r.alpha-=dt*.65;if(r.alpha<=0){ripples.current.splice(i,1);continue}ctx.strokeStyle=`rgba(161,249,255,${r.alpha})`;ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(r.x*w,r.y*h,r.radius*w,r.radius*h*.4,0,0,Math.PI*2);ctx.stroke()}
       const edge=ctx.createLinearGradient(0,0,w,0);edge.addColorStop(0,'rgba(0,7,18,.75)');edge.addColorStop(.08,'rgba(0,7,18,0)');edge.addColorStop(.92,'rgba(0,7,18,0)');edge.addColorStop(1,'rgba(0,7,18,.75)');ctx.fillStyle=edge;ctx.fillRect(0,0,w,h)
     }
@@ -87,15 +129,31 @@ const Aquarium=forwardRef<AquariumHandle>(function Aquarium(_,ref){
   },[])
 
   const locate=(e:React.PointerEvent<HTMLCanvasElement>)=>{const r=e.currentTarget.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height}}
-  return <div className="aquarium" aria-label="包含九种赛博鱼类的交互式鱼缸">
-    <div className="tank-top"><span>NEONABYSS <b>△</b> BIOSPHERE 09</span><span>◉ LIVE ECOSYSTEM</span></div>
+  return <div className="aquarium" aria-label={`交互式鱼缸，当前共有 ${9+customFish.length} 条鱼`}>
+    <div className="tank-top"><span>NEONABYSS <b>△</b> BIOSPHERE {String(9+customFish.length).padStart(2,'0')}</span><span>◉ LIVE ECOSYSTEM</span></div>
     <div className="tank-side left"><i/><i/><i/><i/></div><div className="tank-side right"><i/><i/><i/><i/></div>
     <div className="tank-glass">
       <canvas ref={canvasRef} className="fish-canvas" onPointerMove={e=>{pointer.current=locate(e)}} onPointerLeave={()=>{pointer.current=null}} onPointerDown={e=>{const p=locate(e);attraction.current={...p,ttl:3};ripples.current.push({...p,radius:.02,alpha:.8})}} role="button" tabIndex={0} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();attraction.current={x:.5,y:.4,ttl:3};ripples.current.push({x:.5,y:.4,radius:.02,alpha:.8})}}} aria-label="点击水面或按回车键吸引鱼群" />
       <WaterMotion clockRef={effectClock}/>
       <div className="glass-reflection"/><div className="water-label">BIOSPHERE ONLINE <span>●</span></div><div className="depth-markings">20<br/>40<br/>60</div>
+      <div className="custom-fish-tools">
+        <button className="fish-upload-button" onClick={()=>fileInputRef.current?.click()} aria-label="上传鱼的图片到鱼缸" title="仅保存到当前浏览器的本站；支持 PNG、JPG、WebP，最多 6 条鱼"><span>＋</span> 上传鱼图</button>
+        <input ref={fileInputRef} className="fish-file-input" type="file" accept="image/png,image/jpeg,image/webp" multiple onChange={e=>{const files=Array.from(e.currentTarget.files??[]);if(files.length)onUploadFiles(files);e.currentTarget.value=''}} aria-label="选择鱼类图片" />
+        {customFish.length>0&&<button className="fish-library-toggle" onClick={()=>setLibraryOpen(v=>!v)} aria-expanded={libraryOpen} aria-label={`管理已上传的 ${customFish.length} 条鱼图`}>鱼图 / {customFish.length}</button>}
+      </div>
+      {libraryOpen&&<section className="fish-library-panel" aria-label="管理自定义鱼图">
+        <div className="fish-library-heading"><strong>自定义鱼群 <span>{String(9+customFish.length).padStart(2,'0')}</span></strong><button onClick={()=>setLibraryOpen(false)} aria-label="关闭自定义鱼列表">×</button></div>
+        <p>图片仅保存在当前浏览器的本站；透明底横图效果更佳。</p>
+        <div className="fish-library-list">{customFish.map(item=><div className="fish-library-item" key={item.id}>
+          {previewUrls[item.id]?<img src={previewUrls[item.id]} alt=""/>:<span className="fish-library-placeholder">◇</span>}
+          <span title={item.name}>{item.name}</span>
+          <button onClick={()=>onRemoveCustomFish(item.id)} aria-label={`从鱼缸移除 ${item.name}`}>×</button>
+        </div>)}</div>
+        <div className="fish-upload-status" role="status" aria-live="polite">{uploadStatus||'支持 PNG、JPG、WebP；单张不超过 8 MB'}</div>
+      </section>}
+      {uploadStatus&&!libraryOpen&&<div className="fish-upload-toast" role="status" aria-live="polite">{uploadStatus}</div>}
     </div>
-    <div className="tank-base"><div className="base-vent"/><div className="base-core"/><div className="base-readout"><small>CORE TEMP</small><strong>24.6°C</strong></div><div className="base-warning">⚠ BIOLOGICAL LIFEFORM<br/>DETECTED / 09</div><div className="base-vent"/></div>
+    <div className="tank-base"><div className="base-vent"/><div className="base-core"/><div className="base-readout"><small>CORE TEMP</small><strong>24.6°C</strong></div><div className="base-warning">⚠ BIOLOGICAL LIFEFORM<br/>DETECTED / {String(9+customFish.length).padStart(2,'0')}</div><div className="base-vent"/></div>
     <div className="tank-foot left"/><div className="tank-foot right"/>
   </div>
 })

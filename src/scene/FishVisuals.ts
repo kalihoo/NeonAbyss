@@ -12,7 +12,7 @@ import catfish from '../assets/fish-catfish.webp'
 import discus from '../assets/fish-discus.webp'
 
 const sources: Record<FishKind, string> = { goldfish, koi, tetra, angelfish, betta, arowana, danio, catfish, discus }
-export type FishSprites = Partial<Record<FishKind, Sprite>>
+export type FishSprites = Partial<Record<Fish['kind'], Sprite>>
 
 export function loadFishSprites(sprites: FishSprites) {
   const cancel = Object.entries(sources).map(([kind, url]) => loadSprite(url, sprite => { sprites[kind as FishKind] = sprite }, true))
@@ -23,8 +23,11 @@ export function drawFish(ctx: CanvasRenderingContext2D, fish: Fish, time: number
   const sprite = sprites[fish.kind]
   if (!sprite) return
   const { width: sw, height: sh } = sprite
-  const length = (128 + fish.size * 104) * (.79 + fish.depth * .24) * w / 1250
-  const height = length * sh / sw
+  const custom = fish.kind.startsWith('custom:')
+  const length = (custom ? 145 + fish.size * 72 : 128 + fish.size * 104) * (.79 + fish.depth * .24) * w / 1250
+  const height = custom ? Math.min(length * .7, length * sh / sw) : length * sh / sw
+  const drawWidth = custom && height < length * sh / sw ? height * sw / sh : length
+  const glitchWidth = custom ? drawWidth : length
   const heading = Math.cos(fish.angle)
   const facing = heading >= 0 ? 1 : -1
   // Mirror side profiles when turning; roll is always bounded so a leftward
@@ -43,22 +46,33 @@ export function drawFish(ctx: CanvasRenderingContext2D, fish: Fish, time: number
 
   if (glitch) {
     ctx.save(); ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha *= .5
-    ctx.drawImage(sprite.cyan!, -length / 2 - length * .024, -height / 2, length, height)
-    ctx.drawImage(sprite.magenta!, -length / 2 + length * .024, -height / 2, length, height)
+    ctx.drawImage(sprite.cyan!, -glitchWidth / 2 - glitchWidth * .024, -height / 2, glitchWidth, height)
+    ctx.drawImage(sprite.magenta!, -glitchWidth / 2 + glitchWidth * .024, -height / 2, glitchWidth, height)
     ctx.restore()
   }
 
-  // Continuous tail-to-body mesh. Deformation decays toward the head, keeping
-  // the eye, gill core, and body volume stable while fin rays undulate.
-  const columns = w < 950 ? 28 : 44
-  for (let col = 0; col < columns; col++) {
-    const u = col / columns
-    const tail = Math.pow(1 - u, 2.2)
-    const wave = reduced ? 0 : Math.sin(phase - u * 4.2)
-    const dy = wave * tail * length * .033
-    const scaleY = 1 + wave * tail * .065
-    const sx = sw * u, slice = Math.min(sw / columns + .9, sw - sx)
-    ctx.drawImage(sprite.image, sx, 0, slice, sh, (u - .5) * length, -height * scaleY / 2 + dy, slice * length / sw, height * scaleY)
+  if (custom) {
+    // Uploaded artwork keeps its original silhouette and aspect ratio; only a
+    // soft swim bob and directional mirror are applied so photos do not warp.
+    ctx.save()
+    ctx.globalAlpha *= .94
+    ctx.shadowColor = 'rgba(27, 238, 255, .72)'
+    ctx.shadowBlur = reduced ? 4 : 9 + Math.sin(phase) * 2
+    ctx.drawImage(sprite.image, -drawWidth / 2, -height / 2, drawWidth, height)
+    ctx.restore()
+  } else {
+    // Continuous tail-to-body mesh. Deformation decays toward the head, keeping
+    // the eye, gill core, and body volume stable while fin rays undulate.
+    const columns = w < 950 ? 28 : 44
+    for (let col = 0; col < columns; col++) {
+      const u = col / columns
+      const tail = Math.pow(1 - u, 2.2)
+      const wave = reduced ? 0 : Math.sin(phase - u * 4.2)
+      const dy = wave * tail * length * .033
+      const scaleY = 1 + wave * tail * .065
+      const sx = sw * u, slice = Math.min(sw / columns + .9, sw - sx)
+      ctx.drawImage(sprite.image, sx, 0, slice, sh, (u - .5) * length, -height * scaleY / 2 + dy, slice * length / sw, height * scaleY)
+    }
   }
 
   if (glitch) {
@@ -67,7 +81,7 @@ export function drawFish(ctx: CanvasRenderingContext2D, fish: Fish, time: number
       const y = ((time * 3 + i * .29 + fish.phase) % .86) * sh
       const strip = sh * .018
       ctx.globalAlpha = .5
-      ctx.drawImage(i % 2 ? sprite.cyan! : sprite.magenta!, 0, y, sw, strip, -length / 2 + Math.sin(time * 70 + i) * length * .05, (y / sh - .5) * height, length, strip / sh * height)
+      ctx.drawImage(i % 2 ? sprite.cyan! : sprite.magenta!, 0, y, sw, strip, -glitchWidth / 2 + Math.sin(time * 70 + i) * glitchWidth * .05, (y / sh - .5) * height, glitchWidth, strip / sh * height)
     }
     ctx.restore()
   }

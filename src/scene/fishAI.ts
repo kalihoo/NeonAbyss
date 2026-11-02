@@ -1,7 +1,7 @@
 export type Vec = { x: number; y: number }
 export const fishSpecies = ['goldfish', 'koi', 'tetra', 'angelfish', 'betta', 'arowana', 'danio', 'catfish', 'discus'] as const
 export type FishKind = typeof fishSpecies[number]
-export type Fish = Vec & { id: number; kind: FishKind; vx: number; vy: number; angle: number; size: number; depth: number; phase: number; wander: Vec; wanderTimer: number }
+export type Fish = Vec & { id: number; kind: FishKind | `custom:${string}`; vx: number; vy: number; angle: number; size: number; depth: number; phase: number; wander: Vec; wanderTimer: number }
 export type FoodKind = 'chip' | 'gpu' | 'gear'
 export type Food = Vec & { kind: FoodKind; vy: number; eaten: boolean; phase: number }
 export type Attraction = Vec & { ttl: number }

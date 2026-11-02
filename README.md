@@ -14,6 +14,7 @@ Open the printed local URL. Use `npm test` for fish-behavior tests and `npm run 
 ## Controls
 
 - **Tap or click the water** to create a ripple and attract nearby fish.
+- **上传鱼图** adds up to six PNG, JPG, or WebP fish images. Custom fish swim in the tank with directional turns and cyber glitch flashes. Images are stored locally in the current browser for this site, with a gallery to preview and remove them; transparent landscape images work best.
 - **投喂鱼群** drops miniature microchips, twin-fan graphics cards, and luminous cyber gears. Components tumble as they sink; fish detect, pursue, and consume them.
 - **天气** switches among Night Rain, Neon Fog, Dust Storm, and Clear Night.
 - **时段** switches among Night City, Blue Hour, and Sunset.
