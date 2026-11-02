@@ -3,6 +3,7 @@ import Aquarium, { type AquariumHandle } from './scene/Aquarium'
 import CityCanvas, { type DayPhase, type Weather } from './scene/CityCanvas'
 import { SpecialMotion } from './scene/RemotionEffects'
 import { deleteUploadedFish, getUploadedFish, saveUploadedFish, type UploadedFish } from './scene/customFishStorage'
+import { FishUploadControls } from './FishUploadControls'
 
 const maxCustomFish = 6
 const maxFishImageBytes = 8 * 1024 * 1024
@@ -120,7 +121,7 @@ function App() {
 
     <section className="centerpiece" aria-label="NeonAbyss interactive aquarium">
       <div className="tank-hud hud-left"><span className="hud-line"/><small>SYS // 001</small><strong>AQUARIUM<br/>SYSTEM</strong><span className="hud-data">BIOLOGICAL LIFEFORM<br/>DETECTED <b>{fishCount}</b></span></div>
-      <Aquarium ref={tank} customFish={customFish} uploadStatus={uploadStatus} onUploadFiles={uploadFishImages} onRemoveCustomFish={removeCustomFish}/>
+      <Aquarium ref={tank} customFish={customFish}/>
       <div className="tank-hud hud-right"><small>O₂ SATURATION</small><strong>{oxygen}<sub>%</sub></strong><span className="oxygen-bars">▂ ▃ ▅ ▆ ▄ ▇ ▅ ▄ ▆ ▇ ▃</span><small>WATER QUALITY <b>优良</b></small></div>
     </section>
 
@@ -133,6 +134,7 @@ function App() {
         <div className="control-stack"><span className="control-caption">时段 <i>／ 03</i></span><div className="segmented"><span className="control-leading">◷</span><select value={dayPhase} onChange={e=>setDayPhase(e.target.value as DayPhase)} aria-label="选择时段">{dayOptions.map(d=><option value={d.id} key={d.id}>{d.label}</option>)}</select><span className="chevron">⌄</span></div></div>
         <button className="system-button" onClick={()=>setPanel(v=>!v)} aria-expanded={panel} aria-controls="systems-panel" aria-label="系统状态"><span>⌘</span><small>系统状态</small></button>
         <button className="secret-button" onClick={toggleSpecial} aria-pressed={special} aria-label="特殊模式" title="开启或关闭特殊模式"><span>✧</span><small>特殊模式</small></button>
+        <FishUploadControls customFish={customFish} uploadStatus={uploadStatus} onUploadFiles={uploadFishImages} onRemoveCustomFish={removeCustomFish}/>
       </div>
     </footer>
     <aside id="systems-panel" className={`systems-panel ${panel?'open':''}`} aria-hidden={!panel}>

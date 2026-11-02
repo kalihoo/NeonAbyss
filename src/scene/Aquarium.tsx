@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import { addFood, createFish, stepFish, type Attraction, type Food, type Vec } from './fishAI'
 import reefPlate from '../assets/reef-interior.jpg'
 import { WaterMotion } from './RemotionEffects'
@@ -10,9 +10,6 @@ import type { UploadedFish } from './customFishStorage'
 export type AquariumHandle = { feed: () => void }
 type AquariumProps = {
   customFish: UploadedFish[]
-  uploadStatus: string
-  onUploadFiles: (files: File[]) => void
-  onRemoveCustomFish: (id: string) => void
 }
 type Ripple = Vec & { radius: number; alpha: number }
 type Bubble = Vec & { size: number; speed: number; phase: number }
@@ -33,13 +30,11 @@ function plant(ctx:CanvasRenderingContext2D,x:number,h:number,t:number,color:str
   ctx.restore()
 }
 
-const Aquarium=forwardRef<AquariumHandle, AquariumProps>(function Aquarium({customFish,uploadStatus,onUploadFiles,onRemoveCustomFish},ref){
+const Aquarium=forwardRef<AquariumHandle, AquariumProps>(function Aquarium({customFish},ref){
   const canvasRef=useRef<HTMLCanvasElement>(null)
   const fish=useRef(createFish())
   const sprites=useRef<FishSprites>({})
   const customSpriteLoads=useRef(new Map<string,{url:string;cancel:()=>void}>())
-  const [libraryOpen,setLibraryOpen]=useState(false)
-  const [previewUrls,setPreviewUrls]=useState<Record<string,string>>({})
   const food=useRef<Food[]>([])
   const glitchPulse=useRef(0)
   const effectClock=useRef(0)
@@ -71,13 +66,6 @@ const Aquarium=forwardRef<AquariumHandle, AquariumProps>(function Aquarium({cust
     for(const load of customSpriteLoads.current.values()){load.cancel();URL.revokeObjectURL(load.url)}
     customSpriteLoads.current.clear()
   },[])
-
-  useEffect(()=>{
-    const urls:Record<string,string>={}
-    for(const item of customFish)urls[item.id]=URL.createObjectURL(item.blob)
-    setPreviewUrls(urls)
-    return()=>Object.values(urls).forEach(URL.revokeObjectURL)
-  },[customFish])
 
   useEffect(()=>{
     const canvas=canvasRef.current;if(!canvas)return
@@ -135,24 +123,6 @@ const Aquarium=forwardRef<AquariumHandle, AquariumProps>(function Aquarium({cust
       <canvas ref={canvasRef} className="fish-canvas" onPointerMove={e=>{pointer.current=locate(e)}} onPointerLeave={()=>{pointer.current=null}} onPointerDown={e=>{const p=locate(e);attraction.current={...p,ttl:3};ripples.current.push({...p,radius:.02,alpha:.8})}} role="button" tabIndex={0} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();attraction.current={x:.5,y:.4,ttl:3};ripples.current.push({x:.5,y:.4,radius:.02,alpha:.8})}}} aria-label="点击水面或按回车键吸引鱼群" />
       <WaterMotion clockRef={effectClock}/>
       <div className="glass-reflection"/><div className="water-label">BIOSPHERE ONLINE <span>●</span></div><div className="depth-markings">20<br/>40<br/>60</div>
-      <div className="custom-fish-tools">
-        <label className="fish-upload-button" title="仅保存到当前浏览器的本站；支持 PNG、JPG、WebP，最多 6 条鱼">
-          <input className="fish-file-input" type="file" accept="image/png,image/jpeg,image/webp" multiple onChange={e=>{const files=Array.from(e.currentTarget.files??[]);if(files.length)onUploadFiles(files);e.currentTarget.value=''}} aria-label="上传鱼的图片到鱼缸" />
-          <span>＋</span> 上传鱼图
-        </label>
-        {customFish.length>0&&<button className="fish-library-toggle" onClick={()=>setLibraryOpen(v=>!v)} aria-expanded={libraryOpen} aria-label={`管理已上传的 ${customFish.length} 条鱼图`}>鱼图 / {customFish.length}</button>}
-      </div>
-      {libraryOpen&&<section className="fish-library-panel" aria-label="管理自定义鱼图">
-        <div className="fish-library-heading"><strong>自定义鱼群 <span>{String(9+customFish.length).padStart(2,'0')}</span></strong><button onClick={()=>setLibraryOpen(false)} aria-label="关闭自定义鱼列表">×</button></div>
-        <p>图片仅保存在当前浏览器的本站；透明底横图效果更佳。</p>
-        <div className="fish-library-list">{customFish.map(item=><div className="fish-library-item" key={item.id}>
-          {previewUrls[item.id]?<img src={previewUrls[item.id]} alt=""/>:<span className="fish-library-placeholder">◇</span>}
-          <span title={item.name}>{item.name}</span>
-          <button onClick={()=>onRemoveCustomFish(item.id)} aria-label={`从鱼缸移除 ${item.name}`}>×</button>
-        </div>)}</div>
-        <div className="fish-upload-status" role="status" aria-live="polite">{uploadStatus||'支持 PNG、JPG、WebP；单张不超过 8 MB'}</div>
-      </section>}
-      {uploadStatus&&!libraryOpen&&<div className="fish-upload-toast" role="status" aria-live="polite">{uploadStatus}</div>}
     </div>
     <div className="tank-base"><div className="base-vent"/><div className="base-core"/><div className="base-readout"><small>CORE TEMP</small><strong>24.6°C</strong></div><div className="base-warning">⚠ BIOLOGICAL LIFEFORM<br/>DETECTED / {String(9+customFish.length).padStart(2,'0')}</div><div className="base-vent"/></div>
     <div className="tank-foot left"/><div className="tank-foot right"/>
